@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""
-并发多会话回放测试工具
-模拟真实场景下多用户同时使用的情况，用于：
-1. 压力测试：测试API在并发负载下的表现
-2. 限流测试：测试API的速率限制和并发控制
-3. 真实场景模拟：评估多用户场景下的性能和稳定性
-4. 成本估算：预估多用户场景下的Token消耗和费用
-"""
-
 import asyncio
 import argparse
 import sys
@@ -19,11 +9,11 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, asdict, field
 import logging
 
-# 添加项目路径
+# 프로젝트 경로 추가
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-# 设置日志
+# 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -35,19 +25,19 @@ try:
     import anthropic
     import httpx
 except ImportError as e:
-    logger.error(f"缺少依赖库: {e}")
-    logger.error("请安装: pip install openai anthropic httpx")
+    logger.error(f"필수 의존성 라이브러리 누락: {e}")
+    logger.error("설치: pip install openai anthropic httpx")
     sys.exit(1)
 
-# 可视化库（可选）
+# 시각화 라이브러리 (선택)
 try:
     import matplotlib
-    matplotlib.use('Agg')  # 使用非交互式后端
+    matplotlib.use('Agg')  # 비대화형 백엔드 사용
     import matplotlib.pyplot as plt
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
-    logger.warning("matplotlib未安装，将无法生成matplotlib图表")
+    logger.warning("matplotlib이 설치되지 않아 matplotlib 차트를 생성할 수 없습니다")
 
 try:
     import plotly.graph_objects as go
@@ -55,91 +45,91 @@ try:
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
-    logger.warning("plotly未安装，将无法生成plotly图表")
+    logger.warning("plotly가 설치되지 않아 plotly 차트를 생성할 수 없습니다")
 
-# 导入random用于随机选择
+# 랜덤 선택용 random 임포트
 import random
 
 
 @dataclass
 class ConcurrentSessionMetrics:
-    """并发会话的性能指标"""
+    """동시 세션 성능 지표"""
     session_id: str
-    session_index: int  # 会话编号（用于标识）
+    session_index: int  # 세션 번호 (식별용)
     title: str
     total_turns: int
-    tested_turns: int  # 实际测试的轮数
+    tested_turns: int  # 실제 테스트한 턴 수
 
-    # 时间指标
+    # 시간 지표
     start_time: str
     end_time: str
     total_duration_ms: float
 
-    # Token指标
+    # 토큰 지표
     total_input_tokens: int
     total_output_tokens: int
 
-    # 成功率
+    # 성공률
     successful_turns: int
     failed_turns: int
     success_rate: float
 
-    # TTFT和TPS指标（新增）
+    # TTFT 및 TPS 지표 (추가됨)
     avg_ttft_ms: Optional[float] = None
     median_ttft_ms: Optional[float] = None
     avg_tps: Optional[float] = None
     median_tps: Optional[float] = None
 
-    # 有效样本数（用于加权平均）
+    # 유효 샘플 수 (가중 평균용)
     valid_tps_samples: int = 0
     valid_ttft_samples: int = 0
 
-    # 每轮对话的详细数据（新增）
+    # 턴별 상세 데이터 (추가됨)
     turn_details: List[Dict[str, Any]] = field(default_factory=list)
 
-    # 错误信息
+    # 오류 정보
     errors: List[str] = field(default_factory=list)
 
 
 @dataclass
 class ConcurrentTestReport:
-    """并发测试报告"""
+    """동시성 테스트 보고서"""
     provider_name: str
     model_name: str
     api_url: str
     test_time: str
 
-    # 并发配置
+    # 동시성 설정
     total_sessions: int
     max_concurrent_sessions: int
     max_turns_per_session: Optional[int]
 
-    # 总体统计
+    # 전체 통계
     total_test_duration_ms: float
     total_requests: int
     successful_requests: int
     failed_requests: int
     overall_success_rate: float
 
-    # Token统计
+    # 토큰 통계
     total_input_tokens: int
     total_output_tokens: int
     total_tokens: int
 
-    # 性能指标
+    # 성능 지표
     requests_per_second: float  # QPS
     avg_response_time_ms: float
     p50_response_time_ms: float
     p95_response_time_ms: float
     p99_response_time_ms: float
 
-    # 每个会话的结果
+    # 세션별 결과
     sessions: List[ConcurrentSessionMetrics]
 
-    # 错误汇总
+    # 오류 요약
     total_errors: int
 
-    # TTFT和TPS指标（新增）
+    # TTFT 및 TPS 지표 (추가됨)
     avg_ttft_ms: Optional[float] = None
     median_ttft_ms: Optional[float] = None
     p95_ttft_ms: Optional[float] = None
@@ -149,7 +139,7 @@ class ConcurrentTestReport:
 
 
 class ConcurrentTester:
-    """并发测试器"""
+    """동시성 테스터"""
 
     def __init__(
         self,
@@ -162,19 +152,19 @@ class ConcurrentTester:
         frequency_penalty: Optional[float] = None,
         presence_penalty: Optional[float] = None
     ):
-        """初始化测试器"""
+        """테스터 초기화"""
         self.api_url = api_url
         self.api_key = api_key
         self.model = model
         self.provider_name = provider_name
         self.api_format = api_format
         self.use_raw_httpx = False
-        # 重复惩罚参数
+        # 반복 패널티 파라미터
         self.repetition_penalty = repetition_penalty
         self.frequency_penalty = frequency_penalty
         self.presence_penalty = presence_penalty
 
-        # 初始化客户端
+        # 클라이언트 초기화
         if api_format == "anthropic":
             if '/v1/messages' in api_url:
                 base_url = api_url.rsplit('/v1/messages', 1)[0]
@@ -186,14 +176,14 @@ class ConcurrentTester:
             if 'anthropic.com' not in base_url:
                 self.use_raw_httpx = True
                 self.httpx_client = httpx.AsyncClient(timeout=300.0)
-                logger.info(f"  ⚙️  使用原生 httpx客户端（第三方API）")
+                logger.info(f"  ⚙️  네이티브 httpx 클라이언트 사용 (서드파티 API)")
             else:
                 self.client = anthropic.AsyncAnthropic(
                     api_key=api_key,
                     base_url=base_url
                 )
         else:
-            # OpenAI SDK会自动添加/chat/completions，所以需要去掉
+            # OpenAI SDK가 자동으로 /chat/completions를 추가하므로 제거 필요
             base_url = api_url
             if base_url.endswith('/chat/completions'):
                 base_url = base_url.rsplit('/chat/completions', 1)[0]
@@ -204,16 +194,16 @@ class ConcurrentTester:
             )
 
     def load_sessions_data(self, json_file: str) -> Dict[str, Any]:
-        """加载多会话数据"""
+        """다중 세션 데이터 로드"""
         path = Path(json_file)
         if not path.exists():
-            raise FileNotFoundError(f"文件不存在: {json_file}")
+            raise FileNotFoundError(f"파일이 존재하지 않습니다: {json_file}")
 
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        logger.info(f"📂 加载数据: {json_file}")
-        logger.info(f"  会话数: {data.get('total_sessions', len(data.get('sessions', [])))}")
+        logger.info(f"📂 데이터 로드: {json_file}")
+        logger.info(f"  세션 수: {data.get('total_sessions', len(data.get('sessions', [])))}")
 
         return data
 
@@ -225,53 +215,53 @@ class ConcurrentTester:
         random_seed: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
-        选择要测试的sessions
+        테스트할 세션 선택
         Args:
-            sessions: 所有会话列表
-            num_sessions: 要选择的会话数量（None表示全部）
-            selection_mode: 选择模式 ('first': 前N个, 'random': 随机N个)
-            random_seed: 随机种子（用于可重复的随机选择）
+            sessions: 전체 세션 목록
+            num_sessions: 선택할 세션 수 (None이면 전체)
+            selection_mode: 선택 모드 ('first': 처음 N개, 'random': 랜덤 N개)
+            random_seed: 랜덤 시드 (재현 가능한 랜덤 선택용)
         Returns:
-            选择后的会话列表
+            선택된 세션 목록
         """
         total_sessions = len(sessions)
 
-        # 如果不指定数量，返回全部
+        # 수량을 지정하지 않으면 전체 반환
         if num_sessions is None or num_sessions >= total_sessions:
-            logger.info(f"  ✅ 使用全部 {total_sessions} 个sessions")
+            logger.info(f"  ✅ 전체 {total_sessions}개 세션 사용")
             return sessions
 
-        # 验证数量
+        # 수량 검증
         if num_sessions <= 0:
-            raise ValueError(f"num_sessions必须大于0，当前值: {num_sessions}")
+            raise ValueError(f"num_sessions는 0보다 커야 합니다. 현재 값: {num_sessions}")
 
         if selection_mode == 'first':
             selected = sessions[:num_sessions]
-            logger.info(f"  ✅ 选择前 {num_sessions} 个sessions（共{total_sessions}个）")
+            logger.info(f"  ✅ 처음 {num_sessions}개 세션 선택 (총 {total_sessions}개)")
 
         elif selection_mode == 'random':
-            # 设置随机种子以支持可重复的随机选择
+            # 재현 가능한 랜덤 선택을 위해 랜덤 시드 설정
             if random_seed is not None:
                 random.seed(random_seed)
-                logger.info(f"  🎲 随机选择 {num_sessions} 个sessions（种子: {random_seed}）")
+                logger.info(f"  🎲 랜덤으로 {num_sessions}개 세션 선택 (시드: {random_seed})")
             else:
-                logger.info(f"  🎲 随机选择 {num_sessions} 个sessions")
+                logger.info(f"  🎲 랜덤으로 {num_sessions}개 세션 선택")
 
             selected = random.sample(sessions, num_sessions)
 
         else:
-            raise ValueError(f"不支持的选择模式: {selection_mode}")
+            raise ValueError(f"지원하지 않는 선택 모드: {selection_mode}")
 
-        # 输出选择的session信息
+        # 선택된 세션 정보 출력
         selected_indices = []
         for sess in selected:
-            # 找出原始索引
+            # 원본 인덱스 찾기
             for i, orig_sess in enumerate(sessions, 1):
                 if orig_sess['session_id'] == sess['session_id']:
                     selected_indices.append(i)
                     break
 
-        logger.info(f"  📋 选中的session编号: {sorted(selected_indices)}")
+        logger.info(f"  📋 선택된 세션 번호: {sorted(selected_indices)}")
 
         return selected
 
@@ -285,9 +275,9 @@ class ConcurrentTester:
         turn_number: int = 0
     ) -> Dict[str, Any]:
         """
-        测试单个请求
+        단일 요청 테스트
         Returns:
-            包含 success, duration_ms, input_tokens, output_tokens, ttft_ms, tps, error
+            success, duration_ms, input_tokens, output_tokens, ttft_ms, tps, error 포함
         """
         start_time = time.perf_counter()
 
@@ -314,7 +304,7 @@ class ConcurrentTester:
                 'output_tokens': result.get('output_tokens', 0),
                 'ttft_ms': result.get('ttft_ms'),
                 'tps': result.get('tps'),
-                'response_text': result.get('response_text', ''),  # 添加响应内容
+                'response_text': result.get('response_text', ''),  # 응답 내용 추가
                 'error': None
             }
 
@@ -341,19 +331,19 @@ class ConcurrentTester:
         temperature: Optional[float],
         start_time: float
     ) -> Dict[str, Any]:
-        """使用原生httpx测试（第三方API，支持流式）"""
+        """네이티브 httpx로 테스트 (서드파티 API, 스트리밍 지원)"""
         request_body = {
             "model": self.model,
             "messages": messages,
             "max_tokens": max_tokens or 4096,
             "temperature": temperature if temperature is not None else 0.7,
-            "stream": True  # 使用流式以测量TTFT和TPS
+            "stream": True  # TTFT 및 TPS 측정을 위해 스트리밍 사용
         }
 
         if system:
             request_body["system"] = system
 
-        # 添加重复惩罚参数
+        # 반복 패널티 파라미터 추가
         if self.repetition_penalty is not None:
             request_body["repetition_penalty"] = self.repetition_penalty
 
@@ -377,7 +367,7 @@ class ConcurrentTester:
         ) as response:
             response.raise_for_status()
 
-            # 解析SSE流
+            # SSE 스트림 파싱
             async for line in response.aiter_lines():
                 if not line or not line.startswith('data: '):
                     continue
@@ -395,13 +385,13 @@ class ConcurrentTester:
                         generation_start = time.perf_counter()
                         first_token_received = True
 
-                    # 收集文本内容
+                    # 텍스트 내용 수집
                     if event_type == 'content_block_delta':
                         delta = event.get('delta', {})
                         if delta.get('type') == 'text_delta':
                             full_response += delta.get('text', '')
 
-                    # 收集usage信息
+                    # usage 정보 수집
                     elif event_type == 'message_delta':
                         usage = event.get('usage', {})
                         if usage:
@@ -415,14 +405,14 @@ class ConcurrentTester:
                 except json.JSONDecodeError:
                     continue
 
-        # 计算TPS
+        # TPS 계산
         tps = None
         if first_token_received and usage_data:
             output_tokens = usage_data.get('output_tokens', 0)
             if output_tokens > 0:
                 generation_time = time.perf_counter() - generation_start
-                # 防止generation_time过小导致异常TPS值
-                # 使用总时间计算TPS更稳定（从请求开始到结束）
+                # generation_time이 너무 작아 비정상 TPS가 나오는 것 방지
+                # 총 시간으로 TPS 계산이 더 안정적 (요청 시작~종료)
                 total_time = time.perf_counter() - start_time
                 if total_time > 0:
                     tps = output_tokens / total_time
@@ -432,7 +422,7 @@ class ConcurrentTester:
             'output_tokens': usage_data.get('output_tokens', 0) if usage_data else 0,
             'ttft_ms': ttft_ms,
             'tps': tps,
-            'response_text': full_response  # 添加响应内容
+            'response_text': full_response  # 응답 내용 추가
         }
 
     async def _test_with_anthropic_stream(
@@ -443,7 +433,7 @@ class ConcurrentTester:
         temperature: Optional[float],
         start_time: float
     ) -> Dict[str, Any]:
-        """使用Anthropic SDK测试（流式，支持TTFT和TPS）"""
+        """Anthropic SDK로 테스트 (스트리밍, TTFT/TPS 지원)"""
         request_params = {
             "model": self.model,
             "messages": messages,
@@ -462,28 +452,28 @@ class ConcurrentTester:
 
         async with self.client.messages.stream(**request_params) as stream:
             async for event in stream:
-                # 检测第一个token
+                # 첫 토큰 감지
                 if not first_token_received and hasattr(event, 'type'):
                     if event.type == 'content_block_delta':
                         ttft_ms = (time.perf_counter() - start_time) * 1000
                         generation_start = time.perf_counter()
                         first_token_received = True
 
-                # 收集文本内容
+                # 텍스트 내용 수집
                 if hasattr(event, 'type') and event.type == 'content_block_delta':
                     if hasattr(event, 'delta') and hasattr(event.delta, 'text'):
                         full_response += event.delta.text
 
-        # 获取最终消息以获取usage
+        # usage를 위해 최종 메시지 가져오기
         final_message = await stream.get_final_message()
         usage_data = final_message.usage
 
-        # 计算TPS
+        # TPS 계산
         tps = None
         if first_token_received and usage_data.output_tokens > 0:
             generation_time = time.perf_counter() - generation_start
-            # 防止generation_time过小导致异常TPS值
-            # 使用总时间计算TPS更稳定（从请求开始到结束）
+            # generation_time이 너무 작아 비정상 TPS가 나오는 것 방지
+            # 총 시간으로 TPS 계산이 더 안정적 (요청 시작~종료)
             total_time = time.perf_counter() - start_time
             if total_time > 0:
                 tps = usage_data.output_tokens / total_time
@@ -493,7 +483,7 @@ class ConcurrentTester:
             'output_tokens': usage_data.output_tokens,
             'ttft_ms': ttft_ms,
             'tps': tps,
-            'response_text': full_response  # 添加响应内容
+            'response_text': full_response  # 응답 내용 추가
         }
 
     async def _test_with_openai_stream(
@@ -504,7 +494,7 @@ class ConcurrentTester:
         temperature: Optional[float],
         start_time: float
     ) -> Dict[str, Any]:
-        """使用OpenAI SDK测试（流式，支持TTFT和TPS）"""
+        """OpenAI SDK로 테스트 (스트리밍, TTFT/TPS 지원)"""
         prepared_messages = []
 
         if system:
@@ -516,7 +506,7 @@ class ConcurrentTester:
         first_token_received = False
         generation_start = 0
         full_response = ""
-        usage_data = None  # 用于存储流式返回的usage
+        usage_data = None  # 스트리밍 반환 usage 저장용
 
         stream = await self.client.chat.completions.create(
             model=self.model,
@@ -524,15 +514,15 @@ class ConcurrentTester:
             max_tokens=max_tokens or 4096,
             temperature=temperature if temperature is not None else 0.7,
             stream=True,
-            stream_options={"include_usage": True},  # 请求返回usage信息
-            # 添加重复惩罚参数
+            stream_options={"include_usage": True},  # 요청 시 usage 정보 반환
+            # 반복 패널티 파라미터 추가
             **({"frequency_penalty": self.frequency_penalty} if self.frequency_penalty is not None else {}),
             **({"presence_penalty": self.presence_penalty} if self.presence_penalty is not None else {}),
             **({"extra_body": {"repetition_penalty": self.repetition_penalty}} if self.repetition_penalty is not None else {})
         )
 
         async for chunk in stream:
-            # 检查并收集usage信息（在流的最后一个chunk中）
+            # usage 정보 확인 및 수집 (스트림 마지막 chunk에서)
             if hasattr(chunk, 'usage') and chunk.usage is not None:
                 usage_data = chunk.usage
 
@@ -543,23 +533,23 @@ class ConcurrentTester:
                     generation_start = time.perf_counter()
                     first_token_received = True
 
-            # 收集文本内容
+            # 텍스트 내용 수집
             if chunk.choices and chunk.choices[0].delta.content:
                 full_response += chunk.choices[0].delta.content
 
-        # 优先使用API返回的usage，否则估算
+        # API 반환 usage 우선 사용, 없으면 추정
         if usage_data:
             input_tokens = getattr(usage_data, 'prompt_tokens', 0)
             output_tokens = getattr(usage_data, 'completion_tokens', 0)
         else:
-            # 回退到估算（兼容不支持stream_options的API）
+            # 추정으로 폴백 (stream_options 미지원 API 호환)
             input_tokens = sum(len(str(m.get('content', '')).split()) for m in prepared_messages) * 1.3
             output_tokens = len(full_response.split()) * 1.3 if full_response else 0
 
-        # 计算TPS
+        # TPS 계산
         tps = None
         if first_token_received and output_tokens > 0:
-            # 使用总时间计算TPS更稳定（从请求开始到结束）
+            # 총 시간으로 TPS 계산이 더 안정적 (요청 시작~종료)
             total_time = time.perf_counter() - start_time
             if total_time > 0:
                 tps = output_tokens / total_time
@@ -585,28 +575,28 @@ class ConcurrentTester:
         stop_event: Optional[asyncio.Event] = None
     ) -> ConcurrentSessionMetrics:
         """
-        测试单个会话
+        단일 세션 테스트
         Args:
-            session_data: 会话数据
-            session_index: 会话编号
-            max_turns: 最多测试多少轮
-            rate_limit_delay: 每个请求之间的延迟（秒）
-            warmup_turns: 排除前N轮的统计（预热阶段）
-            cooldown_turns: 排除后N轮的统计（收尾阶段）
-            min_output_tokens: 输出token数少于此值时不纳入统计（默认0表示全部纳入）
-            skip_first_turns: 跳过每个session前N轮，不发起请求（默认0）
-            stop_event: 停止事件，当设置时提前终止测试
+            session_data: 세션 데이터
+            session_index: 세션 번호
+            max_turns: 최대 테스트 턴 수
+            rate_limit_delay: 요청 간 지연 (초)
+            warmup_turns: 앞 N턴 통계 제외 (웜업 단계)
+            cooldown_turns: 뒤 N턴 통계 제외 (쿨다운 단계)
+            min_output_tokens: 출력 토큰이 이 값보다 적으면 통계 제외 (기본 0=전체 포함)
+            skip_first_turns: 각 세션 앞 N턴 건너뛰기, 요청 안 함 (기본 0)
+            stop_event: 중지 이벤트, 설정 시 테스트 조기 종료
         """
         session_id = session_data['session_id']
         title = session_data.get('title', f'Session {session_index}')
         turns_data = session_data['turns']
 
-        # 先跳过前N轮（不发起请求）
+        # 먼저 앞 N턴 건너뛰기 (요청 안 함)
         original_turn_count = len(turns_data)
         if skip_first_turns > 0:
             if skip_first_turns >= len(turns_data):
-                logger.warning(f"⚠️  [{session_index}] skip_first_turns ({skip_first_turns}) >= 总轮数 ({len(turns_data)})，该session无可测试的轮次")
-                # 返回一个空结果
+                logger.warning(f"⚠️  [{session_index}] skip_first_turns ({skip_first_turns}) >= 총 턴 수 ({len(turns_data)}), 해당 세션에 테스트할 턴이 없음")
+                # 빈 결과 반환
                 return ConcurrentSessionMetrics(
                     session_id=session_id,
                     session_index=session_index,
@@ -626,16 +616,16 @@ class ConcurrentTester:
                 )
             turns_data = turns_data[skip_first_turns:]
 
-        # 再应用max_turns限制
+        # max_turns 제한 적용
         if max_turns:
             turns_data = turns_data[:max_turns]
 
-        # 构建日志信息
+        # 로그 메시지 구성
         if skip_first_turns > 0:
-            turn_range = f"第{skip_first_turns + 1}-{skip_first_turns + len(turns_data)}轮"
-            logger.info(f"🔄 [{session_index}] 开始测试: {session_id[:16]}... ({turn_range}, 共{len(turns_data)}轮)")
+            turn_range = f"제{skip_first_turns + 1}-{skip_first_turns + len(turns_data)}턴"
+            logger.info(f"🔄 [{session_index}] 테스트 시작: {session_id[:16]}... ({turn_range}, 총 {len(turns_data)}턴)")
         else:
-            logger.info(f"🔄 [{session_index}] 开始测试: {session_id[:16]}... ({len(turns_data)} 轮)")
+            logger.info(f"🔄 [{session_index}] 테스트 시작: {session_id[:16]}... ({len(turns_data)}턴)")
 
         start_time = datetime.now()
         total_input = 0
@@ -644,30 +634,30 @@ class ConcurrentTester:
         failed = 0
         errors = []
         all_durations = []
-        all_ttft = []  # 收集TTFT数据
-        all_tps = []   # 收集TPS数据
-        turn_details = []  # 收集每轮详细数据（新增）
+        all_ttft = []  # TTFT 데이터 수집
+        all_tps = []   # TPS 데이터 수집
+        turn_details = []  # 턴별 상세 데이터 수집 (추가됨)
 
-        # 用于统计的数据（排除warmup和cooldown）
+        # 통계용 데이터 (warmup/cooldown 제외)
         stable_durations = []
         stable_ttft = []
         stable_tps = []
 
-        # 统计被排除的turns数量
+        # 제외된 턴 수
         excluded_by_min_tokens = 0
 
-        # 计算统计范围
+        # 통계 범위 계산
         total_turns = len(turns_data)
-        stats_start = warmup_turns  # 从第N轮开始统计
-        stats_end = total_turns - cooldown_turns  # 到倒数第N轮结束
+        stats_start = warmup_turns  # N번째 턴부터 통계
+        stats_end = total_turns - cooldown_turns  # 뒤에서 N번째 턴까지
 
         for i, turn_data in enumerate(turns_data, 1):
-            # 检查是否需要提前终止
+            # 조기 종료 여부 확인
             if stop_event and stop_event.is_set():
-                logger.info(f"⏹️  [{session_index}] 收到停止信号，已完成 {i-1}/{len(turns_data)} 轮")
+                logger.info(f"⏹️  [{session_index}] 중지 신호 수신, 완료 {i-1}/{len(turns_data)}턴")
                 break
 
-            # 计算实际的turn编号（在原始session中的编号）
+            # 실제 턴 번호 계산 (원본 세션 기준)
             actual_turn_number = skip_first_turns + i
 
             messages = turn_data['messages']
@@ -686,11 +676,11 @@ class ConcurrentTester:
 
             all_durations.append(result['duration_ms'])
 
-            # 判断是否在稳定统计范围内（排除warmup和cooldown）
-            turn_index = i - 1  # 转换为0-based索引
+            # 안정 구간 통계 여부 (warmup/cooldown 제외)
+            turn_index = i - 1  # 0-based 인덱스로 변환
             is_stable_phase = stats_start <= turn_index < stats_end
 
-            # 记录每轮详细数据（使用实际turn编号）
+            # 턴별 상세 데이터 기록 (실제 턴 번호 사용)
             turn_detail = {
                 'turn_number': actual_turn_number,
                 'success': result['success'],
@@ -699,7 +689,7 @@ class ConcurrentTester:
                 'output_tokens': result['output_tokens'],
                 'ttft_ms': result.get('ttft_ms'),
                 'tps': result.get('tps'),
-                'response_text': result.get('response_text', ''),  # 添加响应内容
+                'response_text': result.get('response_text', ''),  # 응답 내용 추가
                 'is_stable_phase': is_stable_phase,
                 'error': result.get('error')
             }
@@ -710,17 +700,17 @@ class ConcurrentTester:
                 total_input += result['input_tokens']
                 total_output += result['output_tokens']
 
-                # 检查是否满足最小输出token要求
+                # 최소 출력 토큰 조건 충족 여부
                 output_tokens = result['output_tokens']
                 meets_min_tokens = output_tokens >= min_output_tokens if min_output_tokens > 0 else True
 
-                # 收集所有数据
+                # 전체 데이터 수집
                 if result.get('ttft_ms') is not None:
                     all_ttft.append(result['ttft_ms'])
                 if result.get('tps') is not None:
                     all_tps.append(result['tps'])
 
-                # 只在稳定阶段且满足最小token要求时收集用于统计的数据
+                # 안정 구간이면서 최소 토큰 조건 충족 시에만 통계 데이터 수집
                 if is_stable_phase:
                     if meets_min_tokens:
                         stable_durations.append(result['duration_ms'])
@@ -734,7 +724,7 @@ class ConcurrentTester:
                 failed += 1
                 errors.append(f"Turn {i}: {result['error']}")
 
-            # 速率限制延迟
+            # 속도 제한 지연
             if rate_limit_delay > 0 and i < len(turns_data):
                 await asyncio.sleep(rate_limit_delay)
 
@@ -742,7 +732,7 @@ class ConcurrentTester:
         total_duration = sum(all_durations)
         success_rate = (successful / len(turns_data) * 100) if turns_data else 0.0
 
-        # 使用稳定阶段的数据计算统计值（如果有），否则使用全部数据
+        # 안정 구간 데이터로 통계 계산 (있으면), 없으면 전체 데이터 사용
         ttft_data = stable_ttft if stable_ttft else all_ttft
         tps_data = stable_tps if stable_tps else all_tps
 
@@ -751,25 +741,25 @@ class ConcurrentTester:
         avg_tps = sum(tps_data) / len(tps_data) if tps_data else None
         median_tps = sorted(tps_data)[len(tps_data) // 2] if tps_data else None
 
-        # 日志输出
+        # 로그 출력
         if warmup_turns > 0 or cooldown_turns > 0 or min_output_tokens > 0:
-            log_msg = f"✅ [{session_index}] 完成: 成功率 {success_rate:.1f}%, 耗时 {total_duration:.0f}ms "
+            log_msg = f"✅ [{session_index}] 완료: 성공률 {success_rate:.1f}%, 소요 {total_duration:.0f}ms "
             log_details = []
 
             if warmup_turns > 0 or cooldown_turns > 0:
-                log_details.append(f"统计范围: 第{stats_start+1}-{stats_end}轮")
+                log_details.append(f"통계 범위: 제{stats_start+1}-{stats_end}턴")
 
             if min_output_tokens > 0 and excluded_by_min_tokens > 0:
-                log_details.append(f"排除<{min_output_tokens}tokens的turns: {excluded_by_min_tokens}个")
+                log_details.append(f"{min_output_tokens}토큰 미만 턴 제외: {excluded_by_min_tokens}개")
 
             if log_details:
-                log_msg += f"({', '.join(log_details)}, 共{len(stable_ttft)}个有效样本)"
+                log_msg += f"({', '.join(log_details)}, 유효 샘플 {len(stable_ttft)}개)"
             else:
-                log_msg += f"(共{len(stable_ttft)}个有效样本)"
+                log_msg += f"(유효 샘플 {len(stable_ttft)}개)"
 
             logger.info(log_msg)
         else:
-            logger.info(f"✅ [{session_index}] 完成: 成功率 {success_rate:.1f}%, 耗时 {total_duration:.0f}ms")
+            logger.info(f"✅ [{session_index}] 완료: 성공률 {success_rate:.1f}%, 소요 {total_duration:.0f}ms")
 
         return ConcurrentSessionMetrics(
             session_id=session_id,
@@ -791,8 +781,8 @@ class ConcurrentTester:
             median_tps=median_tps,
             valid_tps_samples=len(tps_data),
             valid_ttft_samples=len(ttft_data),
-            turn_details=turn_details,  # 添加每轮详细数据
-            errors=errors[:10]  # 只保留前10个错误
+            turn_details=turn_details,  # 턴별 상세 데이터 추가
+            errors=errors[:10]  # 최대 10개 오류만 유지
         )
 
     async def test_concurrent_sessions(
@@ -808,17 +798,17 @@ class ConcurrentTester:
         min_concurrent: Optional[int] = None
     ) -> ConcurrentTestReport:
         """
-        并发测试多个会话
+        다중 세션 동시 테스트
         Args:
-            sessions_data: 会话数据列表
-            max_concurrent: 最大并发会话数
-            max_turns_per_session: 每个会话最多测试多少轮
-            rate_limit_delay: 每个请求之间的延迟（秒），用于避免触发速率限制
-            warmup_turns: 排除每个会话前N轮的统计（预热阶段）
-            cooldown_turns: 排除每个会话后N轮的统计（收尾阶段）
-            min_output_tokens: 输出token数少于此值时不纳入统计（默认0表示全部纳入）
-            skip_first_turns: 跳过每个session前N轮，不发起请求（默认0）
-            min_concurrent: 当剩余活跃会话数少于此值时停止测试
+            sessions_data: 세션 데이터 목록
+            max_concurrent: 최대 동시 세션 수
+            max_turns_per_session: 세션당 최대 테스트 턴 수
+            rate_limit_delay: 요청 간 지연(초), 속도 제한 회피용
+            warmup_turns: 각 세션 앞 N턴 통계 제외 (웜업 단계)
+            cooldown_turns: 각 세션 뒤 N턴 통계 제외 (쿨다운 단계)
+            min_output_tokens: 출력 토큰이 이 값보다 적으면 통계 제외 (기본 0=전체 포함)
+            skip_first_turns: 각 세션 앞 N턴 건너뛰기, 요청 안 함 (기본 0)
+            min_concurrent: 남은 활성 세션 수가 이 값보다 적을 때 테스트 중단
         """
         test_start = time.perf_counter()
 
