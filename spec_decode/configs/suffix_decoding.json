@@ -1,0 +1,7 @@
+{
+  "method": "suffix",
+  "num_speculative_tokens": 5,
+  "suffix_decoding_max_spec_factor": 2.0,
+  "suffix_decoding_max_cached_requests": 0,
+  "suffix_decoding_max_tree_depth": 24
+}

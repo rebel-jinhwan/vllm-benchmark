@@ -1,0 +1,55 @@
+INFO 03-03 10:58:53 [__init__.py:43] Available plugins for group vllm.platform_plugins:
+INFO 03-03 10:58:53 [__init__.py:45] - rbln -> vllm_rbln:register
+INFO 03-03 10:58:53 [__init__.py:48] All plugins in this group will be loaded. Set `VLLM_PLUGINS` to control which plugins to load.
+INFO 03-03 10:58:53 [__init__.py:217] Platform plugin rbln is activated
+[vllm-rbln] INFO 2026-03-03 10:58:55,138 [importing.py:44] Triton is installed but 0 active driver(s) found (expected 1). Disabling Triton to prevent runtime errors.
+[vllm-rbln] INFO 2026-03-03 10:58:55,138 [importing.py:68] Triton not installed or not compatible; certain GPU-related functions will not be available.
+[vllm-rbln] WARNING 2026-03-03 10:58:56,177 [registry.py:774] Model architecture Gemma3ForConditionalGeneration is already registered, and will be overwritten by the new model class vllm_rbln.model_executor.models.optimum.gemma3:RBLNOptimumGemma3ForConditionalGeneration.
+[0;36m(APIServer pid=1060454)[0;0m [vllm-rbln] INFO 2026-03-03 10:58:56,194 [api_server.py:1351] vLLM API server version 0.13.0
+[0;36m(APIServer pid=1060454)[0;0m [vllm-rbln] INFO 2026-03-03 10:58:56,196 [utils.py:253] non-default args: {'model': 'Qwen/Qwen3-30B-A3B', 'seed': 42, 'max_model_len': 32768, 'tensor_parallel_size': 2, 'data_parallel_size': 2, 'enable_expert_parallel': True, 'gpu_memory_utilization': 0.8, 'speculative_config': {'method': 'ngram', 'num_speculative_tokens': 5, 'prompt_lookup_max': 10}}
+[0;36m(APIServer pid=1060454)[0;0m [vllm-rbln] INFO 2026-03-03 10:58:57,506 [model.py:514] Resolved architecture: Qwen3MoeForCausalLM
+[0;36m(APIServer pid=1060454)[0;0m [vllm-rbln] INFO 2026-03-03 10:58:57,506 [model.py:1661] Using max model len 32768
+[0;36m(APIServer pid=1060454)[0;0m [vllm-rbln] INFO 2026-03-03 10:58:57,648 [scheduler.py:230] Chunked prefill is enabled with max_num_batched_tokens=2048.
+[0;36m(APIServer pid=1060454)[0;0m Traceback (most recent call last):
+[0;36m(APIServer pid=1060454)[0;0m   File "<frozen runpy>", line 198, in _run_module_as_main
+[0;36m(APIServer pid=1060454)[0;0m   File "<frozen runpy>", line 88, in _run_code
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 1469, in <module>
+[0;36m(APIServer pid=1060454)[0;0m     uvloop.run(run_server(args))
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.venv/lib/python3.12/site-packages/uvloop/__init__.py", line 96, in run
+[0;36m(APIServer pid=1060454)[0;0m     return __asyncio.run(
+[0;36m(APIServer pid=1060454)[0;0m            ^^^^^^^^^^^^^^
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 195, in run
+[0;36m(APIServer pid=1060454)[0;0m     return runner.run(main)
+[0;36m(APIServer pid=1060454)[0;0m            ^^^^^^^^^^^^^^^^
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py", line 118, in run
+[0;36m(APIServer pid=1060454)[0;0m     return self._loop.run_until_complete(task)
+[0;36m(APIServer pid=1060454)[0;0m            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[0;36m(APIServer pid=1060454)[0;0m   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.venv/lib/python3.12/site-packages/uvloop/__init__.py", line 48, in wrapper
+[0;36m(APIServer pid=1060454)[0;0m     return await main
+[0;36m(APIServer pid=1060454)[0;0m            ^^^^^^^^^^
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 1398, in run_server
+[0;36m(APIServer pid=1060454)[0;0m     await run_server_worker(listen_address, sock, args, **uvicorn_kwargs)
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 1417, in run_server_worker
+[0;36m(APIServer pid=1060454)[0;0m     async with build_async_engine_client(
+[0;36m(APIServer pid=1060454)[0;0m                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py", line 210, in __aenter__
+[0;36m(APIServer pid=1060454)[0;0m     return await anext(self.gen)
+[0;36m(APIServer pid=1060454)[0;0m            ^^^^^^^^^^^^^^^^^^^^^
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 172, in build_async_engine_client
+[0;36m(APIServer pid=1060454)[0;0m     async with build_async_engine_client_from_engine_args(
+[0;36m(APIServer pid=1060454)[0;0m                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/contextlib.py", line 210, in __aenter__
+[0;36m(APIServer pid=1060454)[0;0m     return await anext(self.gen)
+[0;36m(APIServer pid=1060454)[0;0m            ^^^^^^^^^^^^^^^^^^^^^
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 198, in build_async_engine_client_from_engine_args
+[0;36m(APIServer pid=1060454)[0;0m     vllm_config = engine_args.create_engine_config(usage_context=usage_context)
+[0;36m(APIServer pid=1060454)[0;0m                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.venv/lib/python3.12/site-packages/vllm/engine/arg_utils.py", line 1699, in create_engine_config
+[0;36m(APIServer pid=1060454)[0;0m     config = VllmConfig(
+[0;36m(APIServer pid=1060454)[0;0m              ^^^^^^^^^^^
+[0;36m(APIServer pid=1060454)[0;0m   File "/home/jinhwan/.venv/lib/python3.12/site-packages/pydantic/_internal/_dataclasses.py", line 121, in __init__
+[0;36m(APIServer pid=1060454)[0;0m     s.__pydantic_validator__.validate_python(ArgsKwargs(args, kwargs), self_instance=s)
+[0;36m(APIServer pid=1060454)[0;0m pydantic_core._pydantic_core.ValidationError: 1 validation error for VllmConfig
+[0;36m(APIServer pid=1060454)[0;0m   Assertion failed, Tensor parallelism is set when compiled in optimum-rbln. [type=assertion_error, input_value=ArgsKwargs((), {'model_co...timizationLevel.O2: 2>}), input_type=ArgsKwargs]
+[0;36m(APIServer pid=1060454)[0;0m     For further information visit https://errors.pydantic.dev/2.12/v/assertion_error
