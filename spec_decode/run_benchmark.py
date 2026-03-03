@@ -142,7 +142,7 @@ def send_request(messages, max_tokens, port=8000, timeout=600):
     }
 
 
-def run_benchmark(dataset_file, config_name, port=8000, max_prompts=None):
+def run_benchmark(dataset_file, suffix, port=8000, max_prompts=None):
     """Run full benchmark for one dataset + config. Server must already be running (launch_server.sh)."""
     print(f"[Data] Loading {dataset_file} from {HF_DATASET}...")
     try:
@@ -157,12 +157,12 @@ def run_benchmark(dataset_file, config_name, port=8000, max_prompts=None):
         prompts = prompts[:max_prompts]
 
     print(f"\n{'=' * 60}")
-    print(f"Benchmark: {dataset_file} / {config_name}")
+    print(f"Benchmark: {dataset_file} / {suffix}")
     print(f"Prompts: {len(prompts)}")
     print(f"{'=' * 60}\n")
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    result_path = RESULTS_DIR / f"{dataset_file}_{config_name}.jsonl"
+    result_path = RESULTS_DIR / f"{dataset_file}_{suffix}.jsonl"
 
     # Check for existing partial results
     completed_ids = set()
@@ -188,7 +188,7 @@ def run_benchmark(dataset_file, config_name, port=8000, max_prompts=None):
         )
         result["id"] = prompt["id"]
         result["dataset"] = dataset_file
-        result["config"] = config_name
+        result["config"] = suffix
 
         with open(result_path, "a") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
@@ -215,7 +215,7 @@ def run_benchmark(dataset_file, config_name, port=8000, max_prompts=None):
         avg_tpot = sum(tpots) / len(tpots) if tpots else 0
         p50_tpot = sorted(tpots)[len(tpots) // 2] if tpots else 0
         total_tokens = sum(r["completion_tokens"] for r in ok_results)
-        print(f"\n[Summary] {dataset_file}/{config_name}")
+        print(f"\n[Summary] {dataset_file}/{suffix}")
         print(f"  Completed: {len(ok_results)}/{len(results)}")
         print(f"  Mean TPOT: {avg_tpot:.1f} ms (elapsed/tokens, includes prefill)")
         print(f"  P50 TPOT: {p50_tpot:.1f} ms")
@@ -232,10 +232,10 @@ def main():
         choices=["dataclaw", "spider", "humaneval", "novita"],
     )
     parser.add_argument(
-        "--config",
+        "--suffix",
         required=True,
         choices=get_config_choices(),
-        help="Run label (match CONFIG used in launch_server.sh). Presets: configs/*.json",
+        help="Suffix for the run. Will be used to name the result file.",
     )
     parser.add_argument("--port", type=int, default=8000, help="Server port (must match launch_server.sh)")
     parser.add_argument("--max-prompts", type=int, default=None, help="Limit number of prompts")
@@ -243,7 +243,7 @@ def main():
 
     run_benchmark(
         dataset_file=f"{args.dataset}-*.parquet",
-        config_name=args.config,
+        suffix=args.suffix,
         port=args.port,
         max_prompts=args.max_prompts,
     )

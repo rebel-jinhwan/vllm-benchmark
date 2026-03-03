@@ -14,7 +14,6 @@
 #   PORT                   Server port (default: 8000)
 #   MODEL                  Model name (default: Qwen/Qwen3-30B-A3B)
 #   TP_SIZE                Tensor parallel size (default: 2)
-#   DP_SIZE                Data parallel size (default: 2)
 #   MAX_MODEL_LEN          Max model length (default: 32768)
 #   GPU_MEM_UTIL           GPU memory utilization (default: 0.80)
 #   SEED                   Random seed (default: 42)
@@ -54,11 +53,10 @@ if [[ "${1:-}" == "stop" ]]; then
   stop_server "$PORT"
   exit 0
 fi
-
+CUDA_VISIBLE_DEVICES=0,1
 PORT="${PORT:-8000}"
 MODEL="${MODEL:-Qwen/Qwen3-30B-A3B}"
 TP_SIZE="${TP_SIZE:-2}"
-DP_SIZE="${DP_SIZE:-2}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-32768}"
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.80}"
 SEED="${SEED:-42}"
@@ -73,7 +71,6 @@ fi
 CMD=(
   vllm serve "$MODEL"
   --tensor-parallel-size "$TP_SIZE"
-  --data-parallel-size "$DP_SIZE"
   --max-model-len "$MAX_MODEL_LEN"
   --gpu-memory-utilization "$GPU_MEM_UTIL"
   --seed "$SEED"
