@@ -1,6 +1,6 @@
 # Speculative Decoding Benchmark
 
-vLLM 서버를 포그라운드로 띄운 뒤, 다른 터미널에서 GuideLLM을 이용해 메트릭을 측정합니다.
+vLLM 서버를 띄운 뒤, GuideLLM을 이용해 메트릭을 측정합니다.
 
 ## 사전 준비
 
@@ -73,6 +73,6 @@ guidellm benchmark \
 
 벤치마크에는 [novita/agentic_code_dataset_22](https://huggingface.co/datasets/novita/agentic_code_dataset_22)(22개 Claude Code 세션, OpenAI 형식)를 사용합니다. 이 데이터셋의 JSON 파일을 로컬에 저장한 뒤 **`data/export_guidellm_jsonl.ipynb`** 노트북으로 후가공해 GuideLLM용 JSONL(`e22_sessions_guidellm.jsonl`)을 만듭니다.
 
-1. Hugging Face에서 `novita/agentic_code_dataset_22` JSON 파일 다운로드 → `data/` 등 로컬에 저장 (노트북에서 참조하는 원본 파일명 예: `e22_sessions_openai.json`)
+1. Hugging Face에서 `novita/agentic_code_dataset_22` JSON 파일 다운로드 → `data/` 등 로컬에 저장
 2. `data/export_guidellm_jsonl.ipynb` 실행 → 턴 단위로 분리된 행(`messages`, `output_seq_len`)이 포함된 `data/e22_sessions_guidellm.jsonl` 생성
 3. 아래처럼 `--data`에 해당 JSONL 경로를 지정해 벤치마크 실행
