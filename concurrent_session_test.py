@@ -813,30 +813,30 @@ class ConcurrentTester:
         test_start = time.perf_counter()
 
         logger.info(f"\n{'='*80}")
-        logger.info(f"🚀 开始并发测试")
+        logger.info(f"🚀 동시 테스트 시작")
         logger.info(f"{'='*80}")
-        logger.info(f"  总会话数: {len(sessions_data)}")
-        logger.info(f"  最大并发数: {max_concurrent}")
-        logger.info(f"  每会话最多测试: {max_turns_per_session or '全部'} 轮")
+        logger.info(f"  총 세션 수: {len(sessions_data)}")
+        logger.info(f"  최대 동시 수: {max_concurrent}")
+        logger.info(f"  세션당 최대 테스트: {max_turns_per_session or '전체'} 턴")
         if skip_first_turns > 0:
-            logger.info(f"  跳过前N轮: {skip_first_turns} (不发起请求)")
-        logger.info(f"  请求延迟: {rate_limit_delay}s")
+            logger.info(f"  앞 N턴 건너뛰기: {skip_first_turns} (요청 안 함)")
+        logger.info(f"  요청 지연: {rate_limit_delay}s")
         if warmup_turns > 0 or cooldown_turns > 0:
-            logger.info(f"  统计范围: 排除前{warmup_turns}轮和后{cooldown_turns}轮")
+            logger.info(f"  통계 범위: 앞 {warmup_turns}턴, 뒤 {cooldown_turns}턴 제외")
         if min_output_tokens > 0:
-            logger.info(f"  最小输出token数: {min_output_tokens} (少于此值不纳入统计)")
+            logger.info(f"  최소 출력 토큰: {min_output_tokens} (이보다 적으면 통계 제외)")
         if min_concurrent:
-            logger.info(f"  最小并发数: {min_concurrent} (低于此值将停止测试)")
+            logger.info(f"  최소 동시 수: {min_concurrent} (이보다 낮으면 테스트 중단)")
         logger.info(f"{'='*80}\n")
 
-        # 创建停止事件（用于通知所有会话停止）
+        # 중지 이벤트 생성 (모든 세션에 중지 알림용)
         stop_event = asyncio.Event()
 
-        # 跟踪活跃会话数的原子计数器
+        # 활성 세션 수 추적용 원자 카운터
         active_sessions = {'count': len(sessions_data)}
         active_lock = asyncio.Lock()
 
-        # 创建信号量控制并发数
+        # 동시 수 제어용 세마포어 생성
         semaphore = asyncio.Semaphore(max_concurrent)
 
         async def test_with_semaphore(session_data, index):
@@ -855,29 +855,29 @@ class ConcurrentTester:
                     )
                     return result
                 finally:
-                    # 会话完成，更新活跃数
+                    # 세션 완료, 활성 수 갱신
                     async with active_lock:
                         active_sessions['count'] -= 1
                         remaining = active_sessions['count']
 
-                        # 检查是否需要触发停止
+                        # 중지 트리거 여부 확인
                         if min_concurrent and remaining < min_concurrent and remaining > 0:
                             if not stop_event.is_set():
-                                logger.warning(f"\n⚠️  剩余会话数 ({remaining}) 低于阈值 ({min_concurrent})，触发停止信号")
+                                logger.warning(f"\n⚠️  남은 세션 수 ({remaining})가 임계값 ({min_concurrent}) 미만, 중지 신호 발생")
                                 stop_event.set()
 
-        # 创建所有任务
+        # 모든 태스크 생성
         tasks = [
             test_with_semaphore(session, i)
             for i, session in enumerate(sessions_data, 1)
         ]
 
-        # 执行所有任务
+        # 모든 태스크 실행
         session_metrics = await asyncio.gather(*tasks)
 
         test_duration = (time.perf_counter() - test_start) * 1000
 
-        # 汇总统计
+        # 통계 집계
         return self._generate_report(
             session_metrics,
             test_duration,
@@ -892,7 +892,7 @@ class ConcurrentTester:
         max_concurrent: int,
         max_turns_per_session: Optional[int]
     ) -> ConcurrentTestReport:
-        """生成测试报告"""
+        """테스트 보고서 생성"""
         total_requests = sum(s.tested_turns for s in session_metrics)
         successful_requests = sum(s.successful_turns for s in session_metrics)
         failed_requests = sum(s.failed_turns for s in session_metrics)
@@ -900,10 +900,10 @@ class ConcurrentTester:
         total_input_tokens = sum(s.total_input_tokens for s in session_metrics)
         total_output_tokens = sum(s.total_output_tokens for s in session_metrics)
 
-        # 计算QPS
+        # QPS 계산
         qps = total_requests / (test_duration_ms / 1000) if test_duration_ms > 0 else 0
 
-        # 计算响应时间（简化版，使用会话平均时间）
+        # 응답 시간 계산 (간이, 세션 평균 시간 사용)
         all_avg_times = [s.total_duration_ms / s.tested_turns if s.tested_turns > 0 else 0
                         for s in session_metrics]
         avg_response_time = sum(all_avg_times) / len(all_avg_times) if all_avg_times else 0
@@ -917,7 +917,7 @@ class ConcurrentTester:
         p95 = sorted_times[p95_idx] if sorted_times else 0
         p99 = sorted_times[p99_idx] if sorted_times else 0
 
-        # 错误汇总
+        # 오류 요약
         total_errors = sum(len(s.errors) for s in session_metrics)
         error_types = {}
         for s in session_metrics:
@@ -925,28 +925,28 @@ class ConcurrentTester:
                 error_type = error.split(':')[0] if ':' in error else 'Unknown'
                 error_types[error_type] = error_types.get(error_type, 0) + 1
 
-        # 汇总TTFT和TPS指标
+        # TTFT 및 TPS 지표 집계
         all_session_ttft = [s.avg_ttft_ms for s in session_metrics if s.avg_ttft_ms is not None]
         all_session_tps = [s.avg_tps for s in session_metrics if s.avg_tps is not None]
 
-        # 计算全局TTFT统计（简单平均，因为TTFT不受样本数影响）
+        # 전역 TTFT 통계 계산 (단순 평균, TTFT는 샘플 수 영향 없음)
         avg_ttft = sum(all_session_ttft) / len(all_session_ttft) if all_session_ttft else None
         median_ttft = sorted(all_session_ttft)[len(all_session_ttft) // 2] if all_session_ttft else None
         p95_ttft_idx = int(len(all_session_ttft) * 0.95)
         p95_ttft = sorted(all_session_ttft)[p95_ttft_idx] if all_session_ttft else None
 
-        # 计算全局TPS统计（使用加权平均）
-        # 使用每个会话的有效样本数作为权重
+        # 전역 TPS 통계 계산 (가중 평균 사용)
+        # 세션별 유효 샘플 수를 가중치로 사용
         sessions_with_tps = [s for s in session_metrics if s.avg_tps is not None and s.valid_tps_samples > 0]
 
         if sessions_with_tps:
-            # 加权平均TPS
+            # 가중 평균 TPS
             total_weighted_tps = sum(s.avg_tps * s.valid_tps_samples for s in sessions_with_tps)
             total_samples = sum(s.valid_tps_samples for s in sessions_with_tps)
             avg_tps = total_weighted_tps / total_samples if total_samples > 0 else None
 
-            # 中位数：将所有会话的TPS样本展平后计算（近似，使用会话平均TPS）
-            # 注意：这是简化版本，理想情况下应该收集所有单个请求的TPS
+            # 중앙값: 모든 세션 TPS 샘플을 펼쳐 계산 (근사, 세션 평균 TPS 사용)
+            # 참고: 단순화 버전이며, 이상적으로는 모든 단일 요청 TPS를 수집해야 함
             median_tps = sorted(all_session_tps)[len(all_session_tps) // 2] if all_session_tps else None
         else:
             avg_tps = None
@@ -984,73 +984,73 @@ class ConcurrentTester:
         )
 
     def print_report(self, report: ConcurrentTestReport):
-        """打印测试报告"""
+        """테스트 보고서 출력"""
         print("\n" + "="*80)
-        print("📊 并发测试报告")
+        print("📊 동시성 테스트 보고서")
         print("="*80)
 
-        print(f"\n🎯 测试配置:")
-        print(f"  提供商: {report.provider_name}")
-        print(f"  模型: {report.model_name}")
+        print(f"\n🎯 테스트 설정:")
+        print(f"  제공자: {report.provider_name}")
+        print(f"  모델: {report.model_name}")
         print(f"  API URL: {report.api_url}")
-        print(f"  测试时间: {report.test_time}")
+        print(f"  테스트 시간: {report.test_time}")
 
-        print(f"\n⚙️  并发配置:")
-        print(f"  总会话数: {report.total_sessions}")
-        print(f"  最大并发数: {report.max_concurrent_sessions}")
-        print(f"  每会话轮数: {report.max_turns_per_session or '全部'}")
+        print(f"\n⚙️  동시성 설정:")
+        print(f"  총 세션 수: {report.total_sessions}")
+        print(f"  최대 동시 수: {report.max_concurrent_sessions}")
+        print(f"  세션당 턴 수: {report.max_turns_per_session or '전체'}")
 
-        print(f"\n📈 总体统计:")
-        print(f"  总测试时长: {report.total_test_duration_ms / 1000:.2f}s")
-        print(f"  总请求数: {report.total_requests}")
-        print(f"  成功请求: {report.successful_requests}")
-        print(f"  失败请求: {report.failed_requests}")
-        print(f"  成功率: {report.overall_success_rate:.1f}%")
+        print(f"\n📈 전체 통계:")
+        print(f"  총 테스트 시간: {report.total_test_duration_ms / 1000:.2f}s")
+        print(f"  총 요청 수: {report.total_requests}")
+        print(f"  성공 요청: {report.successful_requests}")
+        print(f"  실패 요청: {report.failed_requests}")
+        print(f"  성공률: {report.overall_success_rate:.1f}%")
 
-        print(f"\n⚡ 性能指标:")
-        print(f"  QPS (请求/秒): {report.requests_per_second:.2f}")
-        print(f"  平均响应时间: {report.avg_response_time_ms:.0f}ms")
-        print(f"  P50 响应时间: {report.p50_response_time_ms:.0f}ms")
-        print(f"  P95 响应时间: {report.p95_response_time_ms:.0f}ms")
-        print(f"  P99 响应时间: {report.p99_response_time_ms:.0f}ms")
+        print(f"\n⚡ 성능 지표:")
+        print(f"  QPS (요청/초): {report.requests_per_second:.2f}")
+        print(f"  평균 응답 시간: {report.avg_response_time_ms:.0f}ms")
+        print(f"  P50 응답 시간: {report.p50_response_time_ms:.0f}ms")
+        print(f"  P95 응답 시간: {report.p95_response_time_ms:.0f}ms")
+        print(f"  P99 응답 시간: {report.p99_response_time_ms:.0f}ms")
 
-        # 显示TTFT和TPS指标
+        # TTFT 및 TPS 지표 표시
         if report.avg_ttft_ms is not None or report.avg_tps is not None:
-            print(f"\n🚀 TTFT和TPS指标:")
+            print(f"\n🚀 TTFT 및 TPS 지표:")
             if report.avg_ttft_ms is not None:
-                print(f"  平均TTFT: {report.avg_ttft_ms:.0f}ms")
+                print(f"  평균 TTFT: {report.avg_ttft_ms:.0f}ms")
                 if report.median_ttft_ms is not None:
-                    print(f"  中位TTFT: {report.median_ttft_ms:.0f}ms")
+                    print(f"  중앙 TTFT: {report.median_ttft_ms:.0f}ms")
                 if report.p95_ttft_ms is not None:
                     print(f"  P95 TTFT: {report.p95_ttft_ms:.0f}ms")
             if report.avg_tps is not None:
-                print(f"  平均TPS: {report.avg_tps:.2f} tokens/s")
+                print(f"  평균 TPS: {report.avg_tps:.2f} tokens/s")
                 if report.median_tps is not None:
-                    print(f"  中位TPS: {report.median_tps:.2f} tokens/s")
+                    print(f"  중앙 TPS: {report.median_tps:.2f} tokens/s")
 
-        print(f"\n🎯 Token统计:")
-        print(f"  输入Token: {report.total_input_tokens:,}")
-        print(f"  输出Token: {report.total_output_tokens:,}")
-        print(f"  总Token: {report.total_tokens:,}")
+        print(f"\n🎯 토큰 통계:")
+        print(f"  입력 토큰: {report.total_input_tokens:,}")
+        print(f"  출력 토큰: {report.total_output_tokens:,}")
+        print(f"  총 토큰: {report.total_tokens:,}")
 
         if report.total_errors > 0:
-            print(f"\n⚠️  错误统计:")
-            print(f"  总错误数: {report.total_errors}")
-            print(f"  错误类型:")
+            print(f"\n⚠️  오류 통계:")
+            print(f"  총 오류 수: {report.total_errors}")
+            print(f"  오류 유형:")
             for error_type, count in sorted(report.error_types.items(), key=lambda x: x[1], reverse=True):
                 print(f"    {error_type}: {count}")
 
         print("\n" + "="*80 + "\n")
 
     def save_report(self, report: ConcurrentTestReport, output_file: str):
-        """保存测试报告"""
+        """테스트 보고서 저장"""
         output_path = Path(output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(asdict(report), f, indent=2, ensure_ascii=False)
 
-        logger.info(f"💾 报告已保存: {output_path}")
+        logger.info(f"💾 보고서 저장됨: {output_path}")
 
     def generate_tps_distribution_chart(
         self,
@@ -1060,17 +1060,17 @@ class ConcurrentTester:
         show_content_threshold: int = 100
     ):
         """
-        生成TPS分布曲线图表
+        TPS 분포 곡선 차트 생성
         Args:
-            report: 测试报告
-            output_dir: 输出目录
-            chart_format: 图表格式 ('matplotlib', 'plotly', 'both')
-            show_content_threshold: 输出token数小于此值时显示内容（0表示不显示）
+            report: 테스트 보고서
+            output_dir: 출력 디렉터리
+            chart_format: 차트 형식 ('matplotlib', 'plotly', 'both')
+            show_content_threshold: 출력 토큰이 이 값보다 적을 때 내용 표시 (0=미표시)
         """
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # 为每个session生成TPS曲线
+        # 세션별 TPS 곡선 생성
         if chart_format in ['matplotlib', 'both'] and MATPLOTLIB_AVAILABLE:
             self._generate_matplotlib_charts(report, output_path, show_content_threshold)
 
@@ -1078,10 +1078,10 @@ class ConcurrentTester:
             self._generate_plotly_charts(report, output_path, show_content_threshold)
 
     def _generate_matplotlib_charts(self, report: ConcurrentTestReport, output_path: Path, show_content_threshold: int = 100):
-        """使用matplotlib生成TPS分布曲线"""
-        logger.info("📊 生成matplotlib图表...")
+        """matplotlib로 TPS 분포 곡선 생성"""
+        logger.info("📊 matplotlib 차트 생성 중...")
 
-        # 为所有session生成一个大图
+        # 모든 세션을 하나의 큰 차트로
         num_sessions = len(report.sessions)
         fig, axes = plt.subplots(
             num_sessions, 1,
@@ -1092,7 +1092,7 @@ class ConcurrentTester:
         for idx, session in enumerate(report.sessions):
             ax = axes[idx, 0]
 
-            # 提取完整的turn数据
+            # 전체 턴 데이터 추출
             turn_data = {'stable': [], 'warmup': []}
 
             for turn_detail in session.turn_details:
@@ -1112,7 +1112,7 @@ class ConcurrentTester:
             has_data = len(turn_data['stable']) > 0 or len(turn_data['warmup']) > 0
 
             if has_data:
-                # 绘制稳定阶段的数据
+                # 안정 구간 데이터 그리기
                 if turn_data['stable']:
                     stable_points = turn_data['stable']
                     ax.plot([p['turn'] for p in stable_points],
@@ -1120,7 +1120,7 @@ class ConcurrentTester:
                            'o-', color='#2E86AB', linewidth=2, markersize=6,
                            label='Stable Phase', alpha=0.8)
 
-                # 绘制预热/收尾阶段的数据
+                # 웜업/쿨다운 구간 데이터 그리기
                 if turn_data['warmup']:
                     warmup_points = turn_data['warmup']
                     ax.plot([p['turn'] for p in warmup_points],
@@ -1128,18 +1128,18 @@ class ConcurrentTester:
                            'o--', color='#A23B72', linewidth=1.5, markersize=4,
                            label='Warmup/Cooldown', alpha=0.6)
 
-                # 添加平均线
+                # 평균선 추가
                 if session.avg_tps:
                     ax.axhline(y=session.avg_tps, color='#F18F01',
                               linestyle='--', linewidth=2,
                               label=f'Avg TPS: {session.avg_tps:.2f}', alpha=0.8)
 
-                # 计算统计信息
+                # 통계 정보 계산
                 all_points = turn_data['stable'] + turn_data['warmup']
                 avg_ttft = sum(p['ttft'] for p in all_points) / len(all_points)
                 avg_output_tokens = sum(p['output_tokens'] for p in all_points) / len(all_points)
 
-                # 设置标题和统计信息
+                # 제목 및 통계 정보 설정
                 title = f'Session {session.session_index}: {session.title[:50]}\n'
                 title += f'Avg TTFT: {avg_ttft:.1f}ms | Avg Output: {avg_output_tokens:.0f} tokens'
                 ax.set_title(title, fontsize=10, fontweight='bold', pad=10)
@@ -1149,7 +1149,7 @@ class ConcurrentTester:
                 ax.grid(True, alpha=0.3, linestyle='--')
                 ax.legend(loc='best', fontsize=9)
 
-                # 设置y轴范围（避免过小的波动）
+                # y축 범위 설정 (과도한 요동 방지)
                 all_tps = [p['tps'] for p in all_points]
                 if all_tps:
                     y_min = min(all_tps) * 0.9
@@ -1168,18 +1168,18 @@ class ConcurrentTester:
         )
         plt.tight_layout()
 
-        # 保存图表
+        # 차트 저장
         chart_file = output_path / 'tps_distribution_matplotlib.png'
         plt.savefig(chart_file, dpi=150, bbox_inches='tight')
         plt.close()
 
-        logger.info(f"  ✅ Matplotlib图表已保存: {chart_file}")
+        logger.info(f"  ✅ Matplotlib 차트 저장됨: {chart_file}")
 
     def _generate_plotly_charts(self, report: ConcurrentTestReport, output_path: Path, show_content_threshold: int = 100):
-        """使用plotly生成TPS分布曲线（交互式）"""
-        logger.info("📊 生成Plotly交互式图表...")
+        """plotly로 TPS 분포 곡선 생성 (인터랙티브)"""
+        logger.info("📊 Plotly 인터랙티브 차트 생성 중...")
 
-        # 创建子图
+        # 서브플롯 생성
         num_sessions = len(report.sessions)
         fig = make_subplots(
             rows=num_sessions, cols=1,
@@ -1189,29 +1189,29 @@ class ConcurrentTester:
         )
 
         for idx, session in enumerate(report.sessions, 1):
-            # 提取完整的turn数据
+            # 전체 턴 데이터 추출
             turn_data = {'stable': [], 'warmup': []}
 
             for turn_detail in session.turn_details:
                 if turn_detail['success'] and turn_detail['tps'] is not None:
-                    # 截断并转义响应内容
+                    # 응답 내용 잘라내기 및 이스케이프
                     response_text = turn_detail.get('response_text', '')
                     output_tokens = turn_detail.get('output_tokens', 0)
 
-                    # 如果满足阈值条件且有内容，则截断显示
+                    # 임계값 조건을 만족하고 내용이 있으면 잘라서 표시
                     display_text = ''
                     if show_content_threshold > 0 and output_tokens < show_content_threshold and response_text:
-                        # 去除前后空白
+                        # 앞뒤 공백 제거
                         response_text = response_text.strip()
-                        if response_text:  # 确保不是空字符串
-                            # 截断到最多300字符，避免hover框过大
+                        if response_text:  # 빈 문자열이 아님 확인
+                            # 최대 300자로 자르기 (hover 상자 과대 방지)
                             display_text = response_text[:300]
                             if len(response_text) > 300:
                                 display_text += '...'
-                            # HTML转义特殊字符
+                            # HTML 특수문자 이스케이프
                             display_text = display_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                            display_text = display_text.replace('\n', '<br>')  # 换行转为HTML
-                            # 添加分隔线和标题
+                            display_text = display_text.replace('\n', '<br>')  # 줄바꿈을 HTML로
+                            # 구분선 및 제목 추가
                             display_text = '<br>---<br><b>Response:</b><br>' + display_text
 
                     data_point = {
@@ -1231,7 +1231,7 @@ class ConcurrentTester:
             has_data = len(turn_data['stable']) > 0 or len(turn_data['warmup']) > 0
 
             if has_data:
-                # 添加稳定阶段的曲线
+                # 안정 구간 곡선 추가
                 if turn_data['stable']:
                     stable_points = turn_data['stable']
                     fig.add_trace(
@@ -1250,14 +1250,14 @@ class ConcurrentTester:
                                 'TTFT: %{customdata[0]:.1f} ms<br>'
                                 'Output Tokens: %{customdata[1]}<br>'
                                 'Input Tokens: %{customdata[2]}<br>'
-                                '%{customdata[3]}'  # 响应内容（如果有）
+                                '%{customdata[3]}'  # 응답 내용 (있는 경우)
                                 '<extra></extra>'
                             )
                         ),
                         row=idx, col=1
                     )
 
-                # 添加预热/收尾阶段的曲线
+                # 웜업/쿨다운 구간 곡선 추가
                 if turn_data['warmup']:
                     warmup_points = turn_data['warmup']
                     fig.add_trace(
@@ -1276,14 +1276,14 @@ class ConcurrentTester:
                                 'TTFT: %{customdata[0]:.1f} ms<br>'
                                 'Output Tokens: %{customdata[1]}<br>'
                                 'Input Tokens: %{customdata[2]}<br>'
-                                '%{customdata[3]}'  # 响应内容（如果有）
+                                '%{customdata[3]}'  # 응답 내용 (있는 경우)
                                 '<extra></extra>'
                             )
                         ),
                         row=idx, col=1
                     )
 
-                # 添加平均线
+                # 평균선 추가
                 if session.avg_tps:
                     all_turns = [p['turn'] for p in turn_data['stable'] + turn_data['warmup']]
                     if all_turns:
@@ -1299,32 +1299,32 @@ class ConcurrentTester:
                             row=idx, col=1
                         )
 
-            # 更新坐标轴
+            # 축 레이블 업데이트
             fig.update_xaxes(title_text='Turn Number', row=idx, col=1)
             fig.update_yaxes(title_text='TPS (tokens/s)', row=idx, col=1)
 
-        # 更新布局
+        # 레이아웃 업데이트
         fig.update_layout(
             title_text=f'TPS Distribution - {report.provider_name} ({report.model_name})',
             height=400 * num_sessions,
             showlegend=True,
-            hovermode='closest',  # 改用closest模式，更适合显示长内容
+            hovermode='closest',  # 긴 내용 표시에 적합한 closest 모드 사용
             hoverlabel=dict(
                 bgcolor="white",
                 font_size=12,
                 font_family="monospace",
                 align="left",
-                namelength=-1  # 不截断label
+                namelength=-1  # label 잘라내지 않음
             )
         )
 
-        # 保存HTML文件，添加自定义CSS来控制hover框大小
+        # HTML 파일 저장, hover 상자 크기 제어용 CSS 추가
         html_file = output_path / 'tps_distribution_plotly.html'
 
-        # 生成HTML并添加自定义CSS
+        # HTML 생성 및 사용자 CSS 추가
         html_string = fig.to_html(include_plotlyjs='cdn')
 
-        # 插入自定义CSS来限制hover框大小并添加滚动
+        # hover 상자 크기 제한 및 스크롤용 사용자 CSS 삽입
         custom_css = """
 <style>
 .hoverlayer .hovertext {
@@ -1337,40 +1337,40 @@ class ConcurrentTester:
 }
 </style>
 """
-        # 在</head>标签前插入CSS
+        # </head> 태그 앞에 CSS 삽입
         html_string = html_string.replace('</head>', custom_css + '</head>')
 
-        # 写入文件
+        # 파일에 쓰기
         with open(html_file, 'w', encoding='utf-8') as f:
             f.write(html_string)
 
-        logger.info(f"  ✅ Plotly图表已保存: {html_file}")
+        logger.info(f"  ✅ Plotly 차트 저장됨: {html_file}")
 
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="并发多会话回放测试工具"
+        description="동시 다중 세션 재생 테스트 도구"
     )
     parser.add_argument(
         '--input',
         required=True,
-        help='输入的多会话JSON文件'
+        help='입력용 다중 세션 JSON 파일'
     )
     parser.add_argument(
         '--num-sessions',
         type=int,
-        help='要测试的会话数量（默认使用全部）'
+        help='테스트할 세션 수 (기본: 전체)'
     )
     parser.add_argument(
         '--selection-mode',
         choices=['first', 'random'],
         default='first',
-        help='会话选择模式: first=前N个, random=随机N个（默认first）'
+        help='세션 선택 모드: first=처음 N개, random=랜덤 N개 (기본 first)'
     )
     parser.add_argument(
         '--random-seed',
         type=int,
-        help='随机选择的种子（用于可重复的随机选择）'
+        help='랜덤 선택 시드 (재현 가능한 선택용)'
     )
     parser.add_argument(
         '--api-url',
@@ -1385,105 +1385,105 @@ async def main():
     parser.add_argument(
         '--model',
         required=True,
-        help='模型名称'
+        help='모델 이름'
     )
     parser.add_argument(
         '--provider',
         default='Test Provider',
-        help='供应商名称'
+        help='공급자 이름'
     )
     parser.add_argument(
         '--api-format',
         choices=['anthropic', 'openai'],
         default='anthropic',
-        help='API格式'
+        help='API 형식'
     )
     parser.add_argument(
         '--max-concurrent',
         type=int,
         default=3,
-        help='最大并发会话数（默认3）'
+        help='최대 동시 세션 수 (기본 3)'
     )
     parser.add_argument(
         '--max-turns',
         type=int,
-        help='每个会话最多测试多少轮'
+        help='세션당 최대 테스트 턴 수'
     )
     parser.add_argument(
         '--rate-limit-delay',
         type=float,
         default=0.5,
-        help='每个请求之间的延迟（秒，默认0.5）'
+        help='요청 간 지연 (초, 기본 0.5)'
     )
     parser.add_argument(
         '--warmup-turns',
         type=int,
         default=0,
-        help='排除每个会话前N轮的统计（预热阶段，默认0）'
+        help='각 세션 앞 N턴 통계 제외 (웜업, 기본 0)'
     )
     parser.add_argument(
         '--cooldown-turns',
         type=int,
         default=0,
-        help='排除每个会话后N轮的统计（收尾阶段，默认0）'
+        help='각 세션 뒤 N턴 통계 제외 (쿨다운, 기본 0)'
     )
     parser.add_argument(
         '--min-concurrent',
         type=int,
-        help='当剩余活跃会话数少于此值时停止测试（可选，避免低并发导致TPS异常）'
+        help='남은 활성 세션 수가 이보다 적을 때 테스트 중단 (선택, 저동시로 인한 TPS 이상 방지)'
     )
     parser.add_argument(
         '--min-output-tokens',
         type=int,
         default=16,
-        help='输出token数少于此值时不纳入统计（默认16，0表示全部纳入）'
+        help='출력 토큰이 이보다 적으면 통계 제외 (기본 16, 0=전체 포함)'
     )
     parser.add_argument(
         '--skip-first-turns',
         type=int,
         default=0,
-        help='跳过每个session前N轮，不发起请求（默认0）'
+        help='각 세션 앞 N턴 건너뛰기, 요청 안 함 (기본 0)'
     )
     parser.add_argument(
         '--output',
-        help='输出报告文件路径'
+        help='출력 보고서 파일 경로'
     )
     parser.add_argument(
         '--generate-charts',
         action='store_true',
-        help='生成TPS分布曲线图表'
+        help='TPS 분포 곡선 차트 생성'
     )
     parser.add_argument(
         '--chart-format',
         choices=['matplotlib', 'plotly', 'both'],
         default='both',
-        help='图表格式（默认both）'
+        help='차트 형식 (기본 both)'
     )
     parser.add_argument(
         '--show-content-threshold',
         type=int,
         default=100,
-        help='当输出token数小于此阈值时，在图表中显示响应内容（默认100，0表示不显示）'
+        help='출력 토큰이 이 임계값보다 작을 때 차트에 응답 내용 표시 (기본 100, 0=미표시)'
     )
     parser.add_argument(
         '--repetition-penalty',
         type=float,
-        help='重复惩罚参数（适用于vLLM等，通常 > 1.0）'
+        help='반복 패널티 (vLLM 등, 보통 > 1.0)'
     )
     parser.add_argument(
         '--frequency-penalty',
         type=float,
-        help='频率惩罚参数（OpenAI标准，范围 -2.0 到 2.0）'
+        help='빈도 패널티 (OpenAI 표준, -2.0 ~ 2.0)'
     )
     parser.add_argument(
         '--presence-penalty',
         type=float,
-        help='存在惩罚参数（OpenAI标准，范围 -2.0 到 2.0）'
+        help='존재 패널티 (OpenAI 표준, -2.0 ~ 2.0)'
     )
 
     args = parser.parse_args()
 
-    # 创建测试器
+    # 테스터 생성
     tester = ConcurrentTester(
         api_url=args.api_url,
         api_key=args.api_key,
@@ -1495,15 +1495,15 @@ async def main():
         presence_penalty=args.presence_penalty
     )
 
-    # 加载会话数据
+    # 세션 데이터 로드
     data = tester.load_sessions_data(args.input)
     sessions = data.get('sessions', [])
 
     if not sessions:
-        logger.error("❌ 没有找到会话数据")
+        logger.error("❌ 세션 데이터를 찾을 수 없습니다")
         return 1
 
-    # 选择要测试的sessions
+    # 테스트할 세션 선택
     sessions = tester.select_sessions(
         sessions=sessions,
         num_sessions=args.num_sessions,
@@ -1511,7 +1511,7 @@ async def main():
         random_seed=args.random_seed
     )
 
-    # 执行并发测试
+    # 동시 테스트 실행
     report = await tester.test_concurrent_sessions(
         sessions_data=sessions,
         max_concurrent=args.max_concurrent,
@@ -1524,29 +1524,29 @@ async def main():
         min_concurrent=args.min_concurrent
     )
 
-    # 打印报告
+    # 보고서 출력
     tester.print_report(report)
 
-    # 确定输出目录
+    # 출력 디렉터리 결정
     if args.output:
         output_file = args.output
         output_dir = str(Path(output_file).parent)
     else:
-        # 默认输出文件名
+        # 기본 출력 파일명
         provider = args.provider.replace(' ', '_')
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         output_dir = "benchmark_results"
         output_file = f"{output_dir}/concurrent_test_{provider}_{timestamp}.json"
 
-    # 保存报告
+    # 보고서 저장
     tester.save_report(report, output_file)
 
-    # 生成TPS分布曲线图表
+    # TPS 분포 곡선 차트 생성
     if args.generate_charts:
         logger.info("\n" + "="*80)
-        logger.info("📊 生成TPS分布曲线图表")
+        logger.info("📊 TPS 분포 곡선 차트 생성")
         if args.show_content_threshold > 0:
-            logger.info(f"  📝 将显示输出token数 < {args.show_content_threshold} 的响应内容")
+            logger.info(f"  📝 출력 토큰 수 < {args.show_content_threshold} 인 응답 내용 표시")
         logger.info("="*80)
         tester.generate_tps_distribution_chart(
             report=report,
