@@ -51,11 +51,12 @@ PORT=8001 CUDA_VISIBLE_DEVICES=0,1 ./launch_server.sh
 guidellm benchmark \
   --target "http://localhost:8000" \
   --profile constant \
-  --rate 4,8,16 \
+  --rate 4,5,6,7,8,9,10 \
   --max-seconds 30 \
   --data ~/vllm-benchmark/data/e22_sessions_guidellm.jsonl \
   --warmup 0.1 \
-  --cooldown 0.1
+  --cooldown 0.1 \
+  --output-path result.json
 ```
 
 - `--profile constant` — 일정 부하 프로필
