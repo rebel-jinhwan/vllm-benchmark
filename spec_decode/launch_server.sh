@@ -53,11 +53,12 @@ if [[ "${1:-}" == "stop" ]]; then
   stop_server "$PORT"
   exit 0
 fi
-CUDA_VISIBLE_DEVICES=0
+# CUDA_VISIBLE_DEVICES=0
 PORT="${PORT:-8000}"
 MODEL="${MODEL:-Qwen/Qwen3-30B-A3B-Instruct-2507}"
 TP_SIZE="${TP_SIZE:-1}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-131072}"
+# MAX_MODEL_LEN="${MAX_MODEL_LEN:-8192}"
 GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.90}"
 SEED="${SEED:-42}"
 ENABLE_EP="${ENABLE_EP:-1}"
